@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Markdown Viewer</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><span class="mark">M↓</span><div><h1>Markdown Viewer</h1><p>让 Markdown，回到阅读本身。</p></div></header>
+  <label class="setting"><span><strong>自动预览</strong><small>自动识别 Markdown 文件与接口</small></span><input id="auto" type="checkbox" role="switch" aria-label="自动预览"></label>
+  <button id="preview">以 Markdown 预览当前页 <span>↗</span></button>
+  <p id="status" role="status">支持 Markdown 自动预览、临时编辑与保存文件。</p>
+  <details><summary>使用说明</summary><p>直接在地址栏打开 Markdown 地址，即可自动预览。设置变更在刷新页面后生效。</p><p>点击「编辑」可临时修改内容，「保存文件」下载修改后的 Markdown。刷新后恢复原文，不写回服务器。</p><p>本地文件需在 Chrome 扩展管理 → 本插件「详情」中开启「允许访问文件网址」。</p><p>普通 HTML、JSON 页面不会被替换。若正文是纯文本，可点击上方按钮手动预览。</p></details>
+  <footer><span>本地解析 · 无数据上传</span><span>v1.3.0</span></footer>
+  <script src="popup.js"></script>
+</body>
+</html>
