@@ -66,6 +66,7 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
     let currentChange = -1;
     let headings = [];
     let images = [];
+    let imagesLoaded = false;
 
     const host = document.createElement("div");
     host.id = "markdown-lens-root";
@@ -79,51 +80,46 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
     app.innerHTML = `
       <div class="reading-progress" aria-hidden="true"></div>
       <header class="topbar">
-        <a class="brand" href="#" data-i18n-aria-label="viewerBrandTop"><span class="brand-mark">M<span>↓</span></span><span>Markdown <b>Viewer</b></span></a>
-        <span class="header-divider"></span><span class="file-label" data-i18n="viewerDocument"></span>
+        <button class="icon-button outline-toggle" data-i18n-title="viewerToggleOutline" data-i18n-aria-label="viewerToggleOutline" aria-expanded="false">☰</button>
+        <a class="brand" href="#" data-i18n-aria-label="viewerBrandTop" data-i18n-title="viewerBrandTop"><span class="brand-mark">M<span>↓</span></span></a>
+        <div class="source-info"><span class="source-name"></span><span class="source-host"></span><span class="draft-status" hidden data-i18n="viewerModified" data-i18n-title="viewerModified"></span></div>
         <div class="toolbar">
-          <button class="icon-button outline-toggle" data-i18n-title="viewerToggleOutline" data-i18n-aria-label="viewerToggleOutline" aria-expanded="false">☰</button>
+          <div class="view-tabs" role="group" data-i18n-aria-label="viewerViews">
+            <button class="view-tab active" data-view="preview" aria-pressed="true" data-i18n="viewerPreview"></button>
+            <button class="view-tab" data-view="edit" aria-pressed="false" data-i18n="viewerEdit"></button>
+          </div>
+          <span class="toolbar-divider" aria-hidden="true"></span>
           <button class="icon-button theme-toggle" data-i18n-title="viewerDarkMode" data-i18n-aria-label="viewerDarkMode">◐</button>
-          <button class="button copy-document" data-i18n="viewerCopySource"></button>
-          <button class="button download" data-i18n-title="viewerSaveTitle"><span data-i18n="viewerSave"></span> <span aria-hidden="true">↓</span></button>
+          <button class="button copy-document"><span class="button-icon" aria-hidden="true">⧉</span><span class="button-label copy-label"></span></button>
+          <button class="button download" data-i18n-title="viewerSaveTitle"><span class="button-label" data-i18n="viewerSave"></span><span class="button-icon" aria-hidden="true">↓</span></button>
         </div>
       </header>
       <div class="layout">
         <aside class="sidebar" data-i18n-aria-label="viewerOutlineLabel">
           <div class="sidebar-heading"><span data-i18n="viewerOutline"></span><span class="heading-count"></span></div>
           <nav class="outline"></nav>
-          <div class="sidebar-footer"><span class="status-dot"></span><span data-i18n="viewerLocalRendering"></span></div>
+          <div class="sidebar-footer"><span class="document-stats"></span><span class="local-note"><span class="status-dot"></span><span data-i18n="viewerLocalRendering"></span></span></div>
         </aside>
         <main class="main">
-          <div class="document-bar">
-            <div class="source-info"><span class="file-icon">M↓</span><div><div class="source-name"></div><div class="source-host"></div></div></div>
-            <div class="view-tabs" role="group" data-i18n-aria-label="viewerViews">
-              <button class="view-tab active" data-view="preview" aria-pressed="true" data-i18n="viewerPreview"></button>
-              <button class="view-tab" data-view="source" aria-pressed="false" data-i18n="viewerSource"></button>
-              <button class="view-tab" data-view="edit" aria-pressed="false" data-i18n="viewerEdit"></button>
-            </div>
-          </div>
-          <div class="compare-toolbar">
-            <label class="compare-switch"><input class="compare-toggle" type="checkbox" role="switch"><span data-i18n="viewerCompare"></span></label>
+          <div class="image-bar" hidden><button class="load-images" data-i18n="viewerLoadImages"></button></div>
+          <div class="edit-bar" hidden>
+            <p class="editor-notice" id="editor-help" data-i18n="viewerEditorNotice"></p>
             <div class="diff-controls" hidden>
               <span class="diff-summary" role="status"></span>
               <button class="button previous-change" data-i18n-aria-label="viewerPreviousChangeLabel" data-i18n="viewerPreviousChange"></button>
               <button class="button next-change" data-i18n-aria-label="viewerNextChangeLabel" data-i18n="viewerNextChange"></button>
               <span class="change-position"></span>
-              <button class="button return-edit" data-i18n="viewerContinueEditing"></button>
             </div>
+            <label class="compare-switch"><input class="compare-toggle" type="checkbox" role="switch" disabled><span data-i18n="viewerCompare"></span></label>
           </div>
-          <div class="document-meta"><span class="format-badge">MARKDOWN</span><span class="document-stats"></span><span class="draft-status" hidden data-i18n="viewerModified"></span><button class="load-images" hidden data-i18n="viewerLoadImages"></button></div>
           <div class="document-panes">
           <section class="diff-panel diff-left" data-i18n-aria-label="viewerSourceDiff" hidden><header class="diff-panel-heading"><strong data-i18n="viewerSource"></strong><span data-i18n="viewerBefore"></span></header><div class="diff-scroll" tabindex="0" data-i18n-aria-label="viewerSourceDiffContent"></div></section>
           <section class="diff-panel diff-right" data-i18n-aria-label="viewerEditedDiff" hidden><header class="diff-panel-heading"><strong data-i18n="viewerEdited"></strong><span data-i18n="viewerAfter"></span></header><div class="diff-scroll" tabindex="0" data-i18n-aria-label="viewerEditedDiffContent"></div></section>
           <article class="markdown-body" data-i18n-aria-label="viewerMarkdownPreview"></article>
           <div class="pane-divider" role="separator" data-i18n-aria-label="viewerResizeCompare" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="50" tabindex="0" hidden></div>
           <section class="editor-view" data-i18n-aria-label="viewerEditMarkdown" hidden>
-            <p class="editor-notice" id="editor-help" data-i18n="viewerEditorNotice"></p>
             <textarea class="markdown-editor" data-i18n-aria-label="viewerMarkdownEditor" aria-describedby="editor-help" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="soft"></textarea>
           </section>
-          <section class="raw-view" data-i18n-aria-label="viewerMarkdownSource" hidden><p class="source-notice" hidden data-i18n="viewerSourceNotice"></p><pre tabindex="0"><code></code></pre></section>
           </div>
           <footer class="document-footer"><span data-i18n="viewerDocumentEnd"></span><button class="back-top" data-i18n="viewerBackTop"></button></footer>
         </main>
@@ -133,7 +129,6 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
     root.append(app);
     const $ = selector => root.querySelector(selector);
     const article = $(".markdown-body");
-    $(".raw-view code").textContent = source;
     $(".markdown-editor").value = draft;
     $(".source-name").textContent = decodePath(location.pathname.split("/").filter(Boolean).pop()) || "document.md";
     $(".source-host").textContent = location.protocol === "file:" ? t("viewerLocalFile") : location.host;
@@ -145,15 +140,20 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
           if (["http:", "https:", "file:"].includes(url.protocol)) img.src = url.href;
         } catch { /* Invalid image URL stays unloaded. */ }
       });
-      $(".load-images").hidden = true;
+      imagesLoaded = true;
+      updateImageBar();
     });
+    function updateImageBar() {
+      $(".image-bar").hidden = imagesLoaded || !images.length || comparing || currentView !== "preview";
+    }
     function updateDraftStatus() {
-      const text = !comparing && currentView === "source" ? source : draft;
-      const size = new Blob([text]).size;
-      $(".document-stats").textContent = t("viewerDocumentStats", { count: text.split("\n").length.toLocaleString(i18n.locale), size: size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` });
+      const size = new Blob([draft]).size;
+      $(".document-stats").textContent = t("viewerDocumentStats", { count: draft.split("\n").length.toLocaleString(i18n.locale), size: size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` });
       $(".draft-status").hidden = draft === source;
-      $(".source-notice").hidden = draft === source;
-      $(".copy-document").textContent = !comparing && (currentView === "source" || draft === source) ? t("viewerCopySource") : t("viewerCopyContent");
+      // Diff only makes sense once there is an edit to compare against.
+      $(".compare-toggle").disabled = !comparing && draft === source;
+      $(".compare-switch").title = draft === source ? t("viewerCompareHint") : "";
+      $(".copy-label").textContent = draft === source ? t("viewerCopySource") : t("viewerCopyContent");
     }
     function renderMarkdown(text) {
       const rendered = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: false }), {
@@ -179,7 +179,8 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
         else input.disabled = true;
       });
       article.replaceChildren(template.content);
-      $(".load-images").hidden = !images.length;
+      imagesLoaded = false;
+      updateImageBar();
       $(".outline").replaceChildren();
       headings = [...article.querySelectorAll("h1,h2,h3,h4,h5,h6")];
       const usedIds = new Set();
@@ -285,7 +286,7 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
         toast(ok ? success : "viewerCopyFailed");
       }
     }
-    $(".copy-document").addEventListener("click", () => copy(!comparing && currentView === "source" ? source : draft, !comparing && currentView === "source" ? "viewerSourceCopied" : "viewerContentCopied"));
+    $(".copy-document").addEventListener("click", () => copy(draft, draft === source ? "viewerSourceCopied" : "viewerContentCopied"));
     function saveFile() {
       const url = URL.createObjectURL(new Blob([draft], { type: "text/markdown;charset=utf-8" }));
       const link = document.createElement("a");
@@ -325,9 +326,10 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
       applyCompareLayout();
       currentView = view;
       article.hidden = view !== "preview";
-      $(".raw-view").hidden = view !== "source";
       $(".editor-view").hidden = view !== "edit";
       $(".sidebar").classList.toggle("muted", view !== "preview");
+      $(".edit-bar").hidden = view !== "edit";
+      updateImageBar();
       root.querySelectorAll(".view-tab").forEach(button => {
         const active = button.dataset.view === view;
         button.classList.toggle("active", active);
@@ -445,11 +447,13 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
     }
     $(".previous-change").addEventListener("click", () => jumpChange(-1));
     $(".next-change").addEventListener("click", () => jumpChange(1));
-    $(".return-edit").addEventListener("click", () => setView("edit"));
     function applyCompareLayout() {
       app.classList.toggle("comparing", comparing);
       $(".compare-toggle").checked = comparing;
       $(".diff-controls").hidden = !comparing;
+      $(".editor-notice").hidden = comparing;
+      if (comparing) $(".edit-bar").hidden = false;
+      updateImageBar();
       $(".pane-divider").hidden = !comparing;
       $(".diff-left").hidden = $(".diff-right").hidden = !comparing;
     }
@@ -458,10 +462,12 @@ import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
       comparing = true;
       applyCompareLayout();
       renderDiff();
-      article.hidden = $(".raw-view").hidden = $(".editor-view").hidden = true;
+      article.hidden = $(".editor-view").hidden = true;
+      // Comparing is a sub-mode of editing: keep the Edit tab selected.
       root.querySelectorAll(".view-tab").forEach(button => {
-        button.classList.remove("active");
-        button.setAttribute("aria-pressed", "false");
+        const active = button.dataset.view === "edit";
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
       });
       updateDraftStatus();
       updateScroll();

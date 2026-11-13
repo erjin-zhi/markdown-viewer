@@ -20,10 +20,8 @@ async (page) => {
   check(await page.locator(".markdown-body h1").textContent() === "Markdown，清晰可读", "测试接口自动预览");
   check(await page.locator(".markdown-body table").count() >= 1, "测试接口表格渲染");
   check(await page.locator(".hljs-attr").count() > 0, "JSON 代码高亮");
-  await page.getByRole("button", { name: "原文", exact: true }).click();
-  check(await page.locator(".raw-view").isVisible(), "原文切换");
-  check(await page.locator(".raw-view code").textContent() === liveSource, "原文与测试响应逐字一致");
-  await page.getByRole("button", { name: "预览", exact: true }).click();
+  check((await page.locator(".view-tab").allTextContents()).join(",") === "预览,编辑", "只保留预览和编辑");
+  check(await page.locator(".markdown-editor").inputValue() === liveSource, "编辑器初始内容与测试响应逐字一致");
   await page.getByRole("button", { name: "复制原文", exact: true }).click();
   await page.locator(".toast.visible").waitFor();
   check((await page.locator(".toast").textContent()).includes("已复制"), "HTTP 接口复制原文兼容回退");
@@ -55,8 +53,8 @@ async (page) => {
     const response = await page.goto(base + route);
     await mounted();
     check(await page.locator(".markdown-body").isVisible(), `自动识别 ${route}`);
-    check(await page.locator(".raw-view code").textContent() === await response.text(), `正文完整 ${route}`);
-    if (route === "/csp") check(await page.locator(".topbar").evaluate(el => getComputedStyle(el).height) === "70px", "严格 CSP 下样式正常");
+    check(await page.locator(".markdown-editor").inputValue() === await response.text(), `正文完整 ${route}`);
+    if (route === "/csp") check(await page.locator(".topbar").evaluate(el => getComputedStyle(el).height) === "52px", "严格 CSP 下样式正常");
   }
   for (const route of ["/html", "/html.md", "/json", "/plain-paragraph", "/large"]) {
     await page.goto(base + route);

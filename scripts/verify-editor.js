@@ -35,9 +35,7 @@ async (page) => {
   check(await page.locator(".markdown-body script,.markdown-body [onerror]").count() === 0, "编辑内容仍经过安全过滤");
   check(await page.evaluate(() => !window.__editorXss), "编辑脚本未执行");
   check(await page.locator(".markdown-body img[src]").count() === 0, "编辑图片未自动联网");
-  await page.getByRole("button", { name: "原文", exact: true }).click();
-  check(await page.locator(".raw-view code").textContent() === original, "原文始终保持原始响应");
-  check(await page.locator(".source-notice").isVisible(), "原文视图明确保存的是编辑内容");
+  check(await page.getByRole("button", { name: "复制内容", exact: true }).isVisible(), "修改后复制按钮指向编辑内容");
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   check(await editor.inputValue() === draft, "切换视图保留临时修改");
   const [download] = await Promise.all([
