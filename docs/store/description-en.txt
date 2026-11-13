@@ -1,0 +1,15 @@
+Make Markdown easier to read in your browser.
+
+Markdown Viewer turns Markdown files and API responses opened directly in Chrome into a readable document. No copying and pasting required.
+
+• Automatic preview: recognizes Markdown response types and .md, .markdown and related file paths. Plain-text pages can also be previewed from the extension menu.
+• Reading tools: syntax highlighting, a table of contents, tables, task lists, blockquotes, strikethrough and collapsible content.
+• Temporary editing: use the Preview and Edit tabs in the top bar, then download your edited document as a .md file. Supports Ctrl+S / Command+S.
+• Change comparison: after editing, turn on Compare changes in the editor toolbar to view the original and edited text side by side. Added and removed lines, inline highlighting, synchronized scrolling and change navigation make changes easy to review. Turn it off to continue editing.
+• Light and dark themes, with layouts for narrow windows.
+• English and Simplified Chinese: follows your browser language by default. Chinese browser locales use Simplified Chinese; other locales use English. You can also choose a language manually in the extension menu. Switching languages preserves your current edits.
+• Local processing: document text and edits are not uploaded, and no analytics service is used. Document images load only when you choose to show them.
+
+Edits stay on the current page only. Reloading restores the original text. Save file downloads your edited document; it does not modify the server or automatically overwrite the source file.
+
+Requires Chrome 128 or later. To preview local files, enable Allow access to file URLs in the extension's Details page. The extension handles documents opened directly, not requests inside websites or ordinary HTML/JSON pages. Math formulas and Mermaid diagrams are not rendered. Very large documents or comparisons may exceed processing limits.

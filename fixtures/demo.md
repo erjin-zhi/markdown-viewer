@@ -8,7 +8,7 @@
 
 1. 安装 Markdown Viewer 扩展。
 2. 在浏览器中打开 Markdown 文件或接口。
-3. 开始阅读，也可以随时切换到原文。
+3. 在「预览」和「编辑」之间切换；修改后可在编辑区打开「对比改动」。
 
 ## 接口示例
 
@@ -30,7 +30,7 @@ async function getDocument(url) {
 ```json
 {
   "name": "Markdown Viewer",
-  "features": ["高亮", "目录", "原文"],
+  "features": ["高亮", "目录", "编辑与对比"],
   "offline": true
 }
 ```
