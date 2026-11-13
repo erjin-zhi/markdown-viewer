@@ -84,6 +84,10 @@ async (page) => {
   check(new Set(ids).size === 3, "重复标题生成唯一锚点");
   await page.getByRole("link", { name: "跳转", exact: true }).click();
   check(decodeURIComponent(new URL(page.url()).hash) === "#重复标题-2", "文内锚点跳转");
+  await page.reload();
+  await mounted();
+  await page.waitForFunction(() => document.querySelector("#markdown-lens-root").shadowRoot.activeElement?.id === "重复标题-2");
+  check(await page.locator(".markdown-body :focus").evaluate(el => getComputedStyle(el).outlineStyle) === "none", "带锚点刷新时标题获得焦点但不显示边框");
 
   const countsAfter = await (await page.request.get(`${base}/counts`)).json();
   check(countsAfter["/mime-paragraph"] - (countsBefore["/mime-paragraph"] || 0) === 1, "预览不重复请求原接口");

@@ -15,6 +15,8 @@
 button, a { -webkit-tap-highlight-color:transparent }
 button { font:inherit; cursor:pointer; color:inherit }
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline:2px solid var(--accent); outline-offset:4px }
+/* Headings receive focus only as jump targets (URL hash, contents); they are not controls, so no ring. */
+.markdown-body [tabindex="-1"]:focus { outline:none }
 a { color:var(--accent) }
 button { border:0; background:none }
 .reading-progress { position:fixed; top:0; left:0; height:2px; background:var(--accent); z-index:30; width:0 }
