@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdir, copyFile, writeFile, readFile, rm, readdir } from "node:fs/promises";
 import { deflateSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,10 @@ await build({
 await copyFile(path.join(root, "manifest.json"), path.join(dist, "manifest.json"));
 await copyFile(path.join(root, "src/popup.html"), path.join(dist, "popup.html"));
 await copyFile(path.join(root, "src/popup.css"), path.join(dist, "popup.css"));
+for (const locale of await readdir(path.join(root, "_locales"))) {
+  await mkdir(path.join(dist, "_locales", locale), { recursive: true });
+  await copyFile(path.join(root, "_locales", locale, "messages.json"), path.join(dist, "_locales", locale, "messages.json"));
+}
 const action = {
   type: "modifyHeaders",
   responseHeaders: [

@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Markdown Viewer"
+  },
+  "extensionDescription": {
+    "message": "Preview Markdown files and responses with highlighting, an outline, temporary editing, diff comparison, and local downloads."
+  }
+}

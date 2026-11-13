@@ -4,11 +4,31 @@ import hljs from "highlight.js/lib/common";
 import { shouldPreview, MAX_SOURCE_LENGTH } from "./detect.js";
 import styles from "./viewer.css";
 import { buildDiff } from "./diff.js";
+import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
 
 (() => {
   if (window.top !== window || document.getElementById("markdown-lens-root")) return;
   let mounted = false;
   let renderPromise;
+  let languagePreference = "auto";
+  let i18n = createI18n(languagePreference);
+  let languageRevision = 0;
+  let updateLanguage;
+  const t = (key, values) => i18n.t(key, values);
+  const failure = reasonKey => ({ ok: false, reasonKey, reason: t(reasonKey) });
+  function setLanguage(preference = "auto") {
+    languagePreference = normalizeLanguagePreference(preference);
+    i18n = createI18n(languagePreference);
+    updateLanguage?.();
+  }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.language) return;
+    languageRevision++;
+    setLanguage(changes.language.newValue);
+  });
+  window.addEventListener("languagechange", () => {
+    if (languagePreference === "auto") setLanguage();
+  });
 
   function readSource() {
     const mime = document.contentType.toLowerCase();
@@ -23,15 +43,16 @@ import { buildDiff } from "./diff.js";
   async function mount(force = false) {
     if (mounted) return { ok: true };
     const info = readSource();
-    if (!info.plainDocument) return { ok: false, reason: "当前页面不是纯文本文档。请直接打开 Markdown 文件或接口地址。" };
-    if (info.source.length > MAX_SOURCE_LENGTH) return { ok: false, reason: "文档超过 3 MB，请下载后使用本地编辑器打开。" };
-    const [settings, response] = await Promise.all([
-      chrome.storage.local.get({ autoPreview: true, theme: "light" }),
-      chrome.runtime.sendMessage({ type: "document-info" }).catch(() => null)
-    ]);
-    if (!force && !settings.autoPreview) return { ok: false, reason: "自动预览已关闭。" };
+    if (!info.plainDocument && !force) return failure("viewerNotPlainDocument");
+    const revision = languageRevision;
+    const settings = await chrome.storage.local.get({ autoPreview: true, theme: "light", language: "auto" });
+    if (revision === languageRevision) setLanguage(settings.language);
+    if (!info.plainDocument) return failure("viewerNotPlainDocument");
+    if (info.source.length > MAX_SOURCE_LENGTH) return failure("viewerDocumentTooLarge");
+    const response = await chrome.runtime.sendMessage({ type: "document-info" }).catch(() => null);
+    if (!force && !settings.autoPreview) return failure("viewerAutoDisabled");
     if (!shouldPreview({ ...info, url: location.href, responseMime: response?.mime, force })) {
-      return { ok: false, reason: "当前页面不是可预览的纯文本文档。请直接打开 Markdown 文件或接口地址。" };
+      return failure("viewerNotPreviewable");
     }
     const { source } = info;
     // Drafts deliberately live only in this document's memory. Never persist or send them.
@@ -40,6 +61,7 @@ import { buildDiff } from "./diff.js";
     let currentView = "preview";
     let comparing = false;
     let comparedDraft;
+    let diffResult;
     let changeRows = [];
     let currentChange = -1;
     let headings = [];
@@ -57,63 +79,64 @@ import { buildDiff } from "./diff.js";
     app.innerHTML = `
       <div class="reading-progress" aria-hidden="true"></div>
       <header class="topbar">
-        <a class="brand" href="#" aria-label="Markdown Viewer，返回顶部"><span class="brand-mark">M<span>↓</span></span><span>Markdown <b>Viewer</b></span></a>
-        <span class="header-divider"></span><span class="file-label">Markdown 文档</span>
+        <a class="brand" href="#" data-i18n-aria-label="viewerBrandTop"><span class="brand-mark">M<span>↓</span></span><span>Markdown <b>Viewer</b></span></a>
+        <span class="header-divider"></span><span class="file-label" data-i18n="viewerDocument"></span>
         <div class="toolbar">
-          <button class="icon-button outline-toggle" title="显示或隐藏目录" aria-label="显示或隐藏目录" aria-expanded="false">☰</button>
-          <button class="icon-button theme-toggle" title="切换深色模式" aria-label="切换深色模式">◐</button>
-          <button class="button copy-document">复制原文</button>
-          <button class="button download" title="将当前编辑内容下载为 Markdown 文件">保存文件 <span aria-hidden="true">↓</span></button>
+          <button class="icon-button outline-toggle" data-i18n-title="viewerToggleOutline" data-i18n-aria-label="viewerToggleOutline" aria-expanded="false">☰</button>
+          <button class="icon-button theme-toggle" data-i18n-title="viewerDarkMode" data-i18n-aria-label="viewerDarkMode">◐</button>
+          <button class="button copy-document" data-i18n="viewerCopySource"></button>
+          <button class="button download" data-i18n-title="viewerSaveTitle"><span data-i18n="viewerSave"></span> <span aria-hidden="true">↓</span></button>
         </div>
       </header>
       <div class="layout">
-        <aside class="sidebar" aria-label="文档目录">
-          <div class="sidebar-heading"><span>本文目录</span><span class="heading-count"></span></div>
+        <aside class="sidebar" data-i18n-aria-label="viewerOutlineLabel">
+          <div class="sidebar-heading"><span data-i18n="viewerOutline"></span><span class="heading-count"></span></div>
           <nav class="outline"></nav>
-          <div class="sidebar-footer"><span class="status-dot"></span>本地渲染 · 无需上传</div>
+          <div class="sidebar-footer"><span class="status-dot"></span><span data-i18n="viewerLocalRendering"></span></div>
         </aside>
         <main class="main">
           <div class="document-bar">
             <div class="source-info"><span class="file-icon">M↓</span><div><div class="source-name"></div><div class="source-host"></div></div></div>
-            <div class="view-tabs" role="group" aria-label="文档视图">
-              <button class="view-tab active" data-view="preview" aria-pressed="true">预览</button>
-              <button class="view-tab" data-view="source" aria-pressed="false">原文</button>
-              <button class="view-tab" data-view="edit" aria-pressed="false">编辑</button>
+            <div class="view-tabs" role="group" data-i18n-aria-label="viewerViews">
+              <button class="view-tab active" data-view="preview" aria-pressed="true" data-i18n="viewerPreview"></button>
+              <button class="view-tab" data-view="source" aria-pressed="false" data-i18n="viewerSource"></button>
+              <button class="view-tab" data-view="edit" aria-pressed="false" data-i18n="viewerEdit"></button>
             </div>
           </div>
           <div class="compare-toolbar">
-            <label class="compare-switch"><input class="compare-toggle" type="checkbox" role="switch"><span>差异对比</span></label>
+            <label class="compare-switch"><input class="compare-toggle" type="checkbox" role="switch"><span data-i18n="viewerCompare"></span></label>
             <div class="diff-controls" hidden>
               <span class="diff-summary" role="status"></span>
-              <button class="button previous-change" aria-label="上一处差异">↑ 上一处</button>
-              <button class="button next-change" aria-label="下一处差异">↓ 下一处</button>
+              <button class="button previous-change" data-i18n-aria-label="viewerPreviousChangeLabel" data-i18n="viewerPreviousChange"></button>
+              <button class="button next-change" data-i18n-aria-label="viewerNextChangeLabel" data-i18n="viewerNextChange"></button>
               <span class="change-position"></span>
-              <button class="button return-edit">继续编辑</button>
+              <button class="button return-edit" data-i18n="viewerContinueEditing"></button>
             </div>
           </div>
-          <div class="document-meta"><span class="format-badge">MARKDOWN</span><span class="document-stats"></span><span class="draft-status" hidden>已修改 · 仅本页</span><button class="load-images" hidden>显示文档图片</button></div>
+          <div class="document-meta"><span class="format-badge">MARKDOWN</span><span class="document-stats"></span><span class="draft-status" hidden data-i18n="viewerModified"></span><button class="load-images" hidden data-i18n="viewerLoadImages"></button></div>
           <div class="document-panes">
-          <section class="diff-panel diff-left" aria-label="原文差异" hidden><header class="diff-panel-heading"><strong>原文</strong><span>− 删除 / 修改前</span></header><div class="diff-scroll" tabindex="0" aria-label="原文差异内容"></div></section>
-          <section class="diff-panel diff-right" aria-label="编辑后差异" hidden><header class="diff-panel-heading"><strong>编辑后</strong><span>＋ 新增 / 修改后</span></header><div class="diff-scroll" tabindex="0" aria-label="编辑后差异内容"></div></section>
-          <article class="markdown-body" aria-label="Markdown 预览"></article>
-          <div class="pane-divider" role="separator" aria-label="调整对比宽度" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="50" tabindex="0" hidden></div>
-          <section class="editor-view" aria-label="编辑 Markdown" hidden>
-            <p class="editor-notice" id="editor-help">修改仅在本页有效，刷新后恢复原文。「保存文件」会下载当前编辑内容。</p>
-            <textarea class="markdown-editor" aria-label="Markdown 编辑器" aria-describedby="editor-help" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="soft"></textarea>
+          <section class="diff-panel diff-left" data-i18n-aria-label="viewerSourceDiff" hidden><header class="diff-panel-heading"><strong data-i18n="viewerSource"></strong><span data-i18n="viewerBefore"></span></header><div class="diff-scroll" tabindex="0" data-i18n-aria-label="viewerSourceDiffContent"></div></section>
+          <section class="diff-panel diff-right" data-i18n-aria-label="viewerEditedDiff" hidden><header class="diff-panel-heading"><strong data-i18n="viewerEdited"></strong><span data-i18n="viewerAfter"></span></header><div class="diff-scroll" tabindex="0" data-i18n-aria-label="viewerEditedDiffContent"></div></section>
+          <article class="markdown-body" data-i18n-aria-label="viewerMarkdownPreview"></article>
+          <div class="pane-divider" role="separator" data-i18n-aria-label="viewerResizeCompare" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="50" tabindex="0" hidden></div>
+          <section class="editor-view" data-i18n-aria-label="viewerEditMarkdown" hidden>
+            <p class="editor-notice" id="editor-help" data-i18n="viewerEditorNotice"></p>
+            <textarea class="markdown-editor" data-i18n-aria-label="viewerMarkdownEditor" aria-describedby="editor-help" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="soft"></textarea>
           </section>
-          <section class="raw-view" aria-label="Markdown 原文" hidden><p class="source-notice" hidden>以下是接口原文；编辑内容仍保留。「保存文件」会导出编辑内容。</p><pre tabindex="0"><code></code></pre></section>
+          <section class="raw-view" data-i18n-aria-label="viewerMarkdownSource" hidden><p class="source-notice" hidden data-i18n="viewerSourceNotice"></p><pre tabindex="0"><code></code></pre></section>
           </div>
-          <footer class="document-footer"><span>文档结束</span><button class="back-top">返回顶部 ↑</button></footer>
+          <footer class="document-footer"><span data-i18n="viewerDocumentEnd"></span><button class="back-top" data-i18n="viewerBackTop"></button></footer>
         </main>
       </div>
       <div class="toast" role="status" aria-live="polite"></div>`;
+    localize(app, t);
     root.append(app);
     const $ = selector => root.querySelector(selector);
     const article = $(".markdown-body");
     $(".raw-view code").textContent = source;
     $(".markdown-editor").value = draft;
     $(".source-name").textContent = decodePath(location.pathname.split("/").filter(Boolean).pop()) || "document.md";
-    $(".source-host").textContent = location.protocol === "file:" ? "本地文件" : location.host;
+    $(".source-host").textContent = location.protocol === "file:" ? t("viewerLocalFile") : location.host;
     $(".source-host").title = location.href;
     $(".load-images").addEventListener("click", () => {
       images.forEach(([img, src]) => {
@@ -127,10 +150,10 @@ import { buildDiff } from "./diff.js";
     function updateDraftStatus() {
       const text = !comparing && currentView === "source" ? source : draft;
       const size = new Blob([text]).size;
-      $(".document-stats").textContent = `${text.split("\n").length.toLocaleString()} 行 · ${size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`}`;
+      $(".document-stats").textContent = t("viewerDocumentStats", { count: text.split("\n").length.toLocaleString(i18n.locale), size: size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` });
       $(".draft-status").hidden = draft === source;
       $(".source-notice").hidden = draft === source;
-      $(".copy-document").textContent = !comparing && (currentView === "source" || draft === source) ? "复制原文" : "复制内容";
+      $(".copy-document").textContent = !comparing && (currentView === "source" || draft === source) ? t("viewerCopySource") : t("viewerCopyContent");
     }
     function renderMarkdown(text) {
       const rendered = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: false }), {
@@ -179,11 +202,12 @@ import { buildDiff } from "./diff.js";
       if (!headings.length) {
         const empty = document.createElement("p");
         empty.className = "outline-empty";
-        empty.textContent = "本文暂无标题";
+        empty.dataset.i18n = "viewerNoHeadings";
+        empty.textContent = t("viewerNoHeadings");
         $(".outline").append(empty);
       }
       $(".heading-count").textContent = String(headings.length).padStart(2, "0");
-      const title = headings[0]?.textContent || decodePath(location.pathname.split("/").filter(Boolean).pop()) || "Markdown 文档";
+      const title = headings[0]?.textContent || decodePath(location.pathname.split("/").filter(Boolean).pop()) || t("viewerDocument");
       document.title = `${title} · Markdown Viewer`;
 
       article.querySelectorAll("pre > code").forEach(code => {
@@ -203,9 +227,11 @@ import { buildDiff } from "./diff.js";
         const label = document.createElement("span");
         label.textContent = lang || "text";
         const copyButton = document.createElement("button");
-        copyButton.textContent = "复制";
-        copyButton.setAttribute("aria-label", `复制 ${lang || "文本"} 代码`);
-        copyButton.addEventListener("click", () => copy(raw, "代码已复制"));
+        copyButton.dataset.i18n = "viewerCopy";
+        copyButton.dataset.codeLanguage = lang;
+        copyButton.textContent = t("viewerCopy");
+        copyButton.setAttribute("aria-label", t("viewerCopyCodeLabel", { language: lang || t("viewerText") }));
+        copyButton.addEventListener("click", () => copy(raw, "viewerCodeCopied"));
         bar.append(label, copyButton);
         pre.replaceWith(shell);
         shell.append(bar, pre);
@@ -215,7 +241,8 @@ import { buildDiff } from "./diff.js";
         wrap.className = "table-wrap";
         wrap.tabIndex = 0;
         wrap.setAttribute("role", "region");
-        wrap.setAttribute("aria-label", "表格，可横向滚动");
+        wrap.dataset.i18nAriaLabel = "viewerTableScroll";
+        wrap.setAttribute("aria-label", t("viewerTableScroll"));
         table.replaceWith(wrap);
         wrap.append(table);
       });
@@ -233,8 +260,10 @@ import { buildDiff } from "./diff.js";
     });
 
     let toastTimer;
-    function toast(message) {
-      $(".toast").textContent = message;
+    let toastKey;
+    function toast(key) {
+      toastKey = key;
+      $(".toast").textContent = t(key);
       $(".toast").classList.add("visible");
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => $(".toast").classList.remove("visible"), 2200);
@@ -253,10 +282,10 @@ import { buildDiff } from "./diff.js";
         area.select();
         const ok = document.execCommand("copy");
         area.remove();
-        toast(ok ? success : "复制未成功，请切换原文后手动复制");
+        toast(ok ? success : "viewerCopyFailed");
       }
     }
-    $(".copy-document").addEventListener("click", () => copy(!comparing && currentView === "source" ? source : draft, !comparing && currentView === "source" ? "Markdown 原文已复制" : "Markdown 内容已复制"));
+    $(".copy-document").addEventListener("click", () => copy(!comparing && currentView === "source" ? source : draft, !comparing && currentView === "source" ? "viewerSourceCopied" : "viewerContentCopied"));
     function saveFile() {
       const url = URL.createObjectURL(new Blob([draft], { type: "text/markdown;charset=utf-8" }));
       const link = document.createElement("a");
@@ -267,25 +296,28 @@ import { buildDiff } from "./diff.js";
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      toast("已发起文件下载，页面修改仍仅在本页有效");
+      toast("viewerDownloadStarted");
     }
     $(".download").addEventListener("click", saveFile);
-    const setThemeLabel = () => $(".theme-toggle").setAttribute("aria-label", app.dataset.theme === "dark" ? "切换浅色模式" : "切换深色模式");
+    const setThemeLabel = () => {
+      const label = t(app.dataset.theme === "dark" ? "viewerLightMode" : "viewerDarkMode");
+      $(".theme-toggle").setAttribute("aria-label", label);
+      $(".theme-toggle").title = label;
+    };
     setThemeLabel();
     $(".theme-toggle").addEventListener("click", () => {
       app.dataset.theme = app.dataset.theme === "dark" ? "light" : "dark";
-      $(".theme-toggle").title = app.dataset.theme === "dark" ? "切换浅色模式" : "切换深色模式";
       setThemeLabel();
-      chrome.storage.local.set({ theme: app.dataset.theme }).catch(() => toast("主题保存失败"));
+      chrome.storage.local.set({ theme: app.dataset.theme }).catch(() => toast("viewerThemeSaveFailed"));
     });
     function setView(view, focusEditor = true) {
       if (view === "preview" && draft !== renderedSource) {
         if (draft.length > MAX_SOURCE_LENGTH) {
-          toast("内容过长，暂不支持预览；仍可保存为文件");
+          toast("viewerPreviewTooLarge");
           return false;
         }
         try { renderMarkdown(draft); } catch {
-          toast("预览失败，编辑内容仍在，可保存为文件");
+          toast("viewerPreviewFailed");
           return false;
         }
       }
@@ -348,30 +380,41 @@ import { buildDiff } from "./diff.js";
         if (cell.kind !== "same" && !cell.value.endsWith("\n")) {
           const eof = document.createElement("span");
           eof.className = "diff-eof";
-          eof.textContent = " 无末尾换行";
+          eof.dataset.i18n = "viewerNoFinalNewline";
+          eof.textContent = t("viewerNoFinalNewline");
           code.append(eof);
         }
       }
       row.append(number, marker, code);
       return row;
     }
+    function updateDiffSummary() {
+      if (!diffResult) return;
+      $(".diff-summary").textContent = diffResult.limited ? t("viewerDiffLimited") :
+        changeRows.length ? t("viewerDiffSummary", {
+          added: diffResult.added.toLocaleString(i18n.locale),
+          removed: diffResult.removed.toLocaleString(i18n.locale),
+          changes: changeRows.length.toLocaleString(i18n.locale)
+        }) : t("viewerNoChanges");
+    }
     function renderDiff() {
       if (comparedDraft === draft) return;
       const result = buildDiff(source, draft);
+      diffResult = { limited: result.limited, added: result.added, removed: result.removed };
       leftDiff.replaceChildren();
       rightDiff.replaceChildren();
       changeRows = result.groups || [];
       currentChange = -1;
+      updateDiffSummary();
       if (result.limited) {
-        $(".diff-summary").textContent = "内容较大或差异过多，暂不生成 diff；仍可继续编辑和保存文件。";
         for (const el of [leftDiff, rightDiff]) {
           const notice = document.createElement("p");
           notice.className = "diff-empty";
-          notice.textContent = "未生成差异，内容没有丢失。请切回原文或编辑查看。";
+          notice.dataset.i18n = "viewerDiffNotGenerated";
+          notice.textContent = t("viewerDiffNotGenerated");
           el.append(notice);
         }
       } else {
-        $(".diff-summary").textContent = changeRows.length ? `新增 ${result.added} 行 · 删除 ${result.removed} 行 · ${changeRows.length} 处差异` : "内容一致，暂无修改";
         const leftFragment = document.createDocumentFragment(), rightFragment = document.createDocumentFragment();
         result.rows.forEach((row, index) => {
           leftFragment.append(diffRow(row.left, "left", index));
@@ -506,7 +549,24 @@ import { buildDiff } from "./diff.js";
       if (!ticking) { ticking = true; requestAnimationFrame(updateScroll); }
     }, { passive: true });
     window.addEventListener("hashchange", () => goToHash(location.hash));
-    document.documentElement.lang = "zh-CN";
+    updateLanguage = () => {
+      // Translate labels in place: retain editor selection, images, diff rows and scroll state.
+      localize(app, t);
+      document.documentElement.lang = i18n.locale;
+      app.lang = i18n.locale;
+      $(".source-host").textContent = location.protocol === "file:" ? t("viewerLocalFile") : location.host;
+      updateDraftStatus();
+      setThemeLabel();
+      updateDiffSummary();
+      article.querySelectorAll(".code-bar button").forEach(button => {
+        button.setAttribute("aria-label", t("viewerCopyCodeLabel", { language: button.dataset.codeLanguage || t("viewerText") }));
+      });
+      const title = headings[0]?.textContent || decodePath(location.pathname.split("/").filter(Boolean).pop()) || t("viewerDocument");
+      document.title = `${title} · Markdown Viewer`;
+      if (toastKey) $(".toast").textContent = t(toastKey);
+      updateScroll();
+    };
+    updateLanguage();
     document.body.replaceChildren(host);
     // The native plain-text viewer applies wrapping and margins to its body.
     document.body.style.cssText = "margin:0; padding:0; background:transparent; overflow-wrap:normal";
@@ -522,7 +582,7 @@ import { buildDiff } from "./diff.js";
     if (renderPromise) return renderPromise.then(result => force && !result.ok ? start(true) : result);
     renderPromise = mount(force).catch(error => {
       console.error("Markdown Viewer:", error);
-      return { ok: false, reason: "文档渲染失败，原始响应已保留。请刷新后重试。" };
+      return failure("viewerRenderFailed");
     }).finally(() => { renderPromise = null; });
     return renderPromise;
   }

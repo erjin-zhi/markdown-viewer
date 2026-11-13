@@ -8,6 +8,7 @@ async (page) => {
   const base = "http://127.0.0.1:18765";
   const context = page.context();
   const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker");
+  await worker.evaluate(() => chrome.storage.local.set({ language: "zh-CN" }));
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   const mounted = () => page.locator("#markdown-lens-root").waitFor({ state: "attached" });

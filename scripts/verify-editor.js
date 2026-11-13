@@ -7,6 +7,7 @@ async (page) => {
   const base = "http://127.0.0.1:18765";
   await page.setViewportSize({ width: 1440, height: 1000 });
   const worker = page.context().serviceWorkers()[0] || await page.context().waitForEvent("serviceworker");
+  await worker.evaluate(() => chrome.storage.local.set({ language: "zh-CN" }));
   const response = await page.goto(base + "/api/docs");
   const original = await response.text();
   await page.locator("#markdown-lens-root").waitFor();

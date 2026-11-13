@@ -1,20 +1,95 @@
+import { createI18n, localize, normalizeLanguagePreference } from "./i18n.js";
+
 const auto = document.querySelector("#auto");
 const status = document.querySelector("#status");
 const preview = document.querySelector("#preview");
-chrome.storage.local.get({ autoPreview: true }).then(settings => { auto.checked = settings.autoPreview; });
-auto.addEventListener("change", async () => {
+const language = document.querySelector("#language");
+let savedAuto = true;
+let savedLanguage = "auto";
+let i18n = createI18n(savedLanguage);
+let statusKey = "popupReady";
+
+function showStatus(key) {
+  statusKey = key;
+  status.textContent = i18n.t(key);
+}
+
+function renderLanguage() {
+  i18n = createI18n(savedLanguage);
+  document.documentElement.lang = i18n.locale;
+  localize(document, i18n.t);
+  language.value = savedLanguage;
+  showStatus(statusKey);
+}
+
+async function initialize() {
   try {
-    await chrome.storage.local.set({ autoPreview: auto.checked });
-    status.textContent = auto.checked ? "自动预览已开启，刷新文档页面后生效。" : "自动预览已关闭，刷新页面后生效。";
-  } catch { status.textContent = "设置保存失败，请重试。"; }
+    const settings = await chrome.storage.local.get({ autoPreview: true, language: "auto" });
+    savedAuto = settings.autoPreview;
+    savedLanguage = normalizeLanguagePreference(settings.language);
+    auto.checked = savedAuto;
+    auto.disabled = language.disabled = false;
+  } catch {
+    // Do not let an unknown stored setting be overwritten by an apparent default.
+    statusKey = "popupSettingsLoadFailed";
+  } finally {
+    renderLanguage();
+    preview.disabled = false;
+    document.body.removeAttribute("data-loading");
+  }
+}
+
+auto.addEventListener("change", async () => {
+  const next = auto.checked;
+  auto.disabled = true;
+  try {
+    await chrome.storage.local.set({ autoPreview: next });
+    savedAuto = next;
+    showStatus(next ? "popupAutoEnabled" : "popupAutoDisabled");
+  } catch {
+    auto.checked = savedAuto;
+    showStatus("popupSettingsSaveFailed");
+  } finally { auto.disabled = false; }
 });
+
+language.addEventListener("change", async () => {
+  const next = normalizeLanguagePreference(language.value);
+  language.disabled = true;
+  try {
+    await chrome.storage.local.set({ language: next });
+    savedLanguage = next;
+    statusKey = "popupLanguageSaved";
+    renderLanguage();
+  } catch {
+    language.value = savedLanguage;
+    showStatus("popupSettingsSaveFailed");
+  } finally { language.disabled = false; }
+});
+
 preview.addEventListener("click", async () => {
   preview.disabled = true;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const result = await chrome.tabs.sendMessage(tab.id, { type: "preview-now" });
-    status.textContent = result?.ok ? "已打开 Markdown 预览。" : result?.reason || "此页面无法预览。";
+    const reason = result?.reasonKey;
+    showStatus(result?.ok ? "popupPreviewOpened" : reason && i18n.t(reason) !== reason ? reason : "popupCannotPreview");
   } catch {
-    status.textContent = "无法访问当前页。安装后请刷新文档；本地文件请先允许访问文件网址。Chrome 内置页面不支持预览。";
+    showStatus("popupPageUnavailable");
   } finally { preview.disabled = false; }
 });
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (changes.autoPreview) {
+    savedAuto = changes.autoPreview.newValue ?? true;
+    auto.checked = savedAuto;
+  }
+  if (changes.language) {
+    savedLanguage = normalizeLanguagePreference(changes.language.newValue);
+    renderLanguage();
+  }
+});
+window.addEventListener("languagechange", () => {
+  if (savedLanguage === "auto") renderLanguage();
+});
+initialize();

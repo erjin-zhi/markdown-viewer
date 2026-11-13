@@ -9,6 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-ISC-147d73?style=flat-square" alt="ISC License" /></a>
   </p>
   <p>
+    <a href="https://chromewebstore.google.com/detail/apgilbfecpelkbdlpicghlioaffpglfd">Chrome 商店安装</a> ·
     <a href="https://github.com/erjin-zhi/markdown-viewer/releases/latest">下载安装包</a> ·
     <a href="#功能亮点">功能亮点</a> ·
     <a href="PRIVACY.md">隐私政策</a> ·
@@ -26,6 +27,7 @@
 | **随手编辑** | 原文随时可查；临时修改后查看预览，一键保存为 `.md` 文件。 |
 | **真正的 diff** | 左侧原文、右侧编辑后内容；增删行和行内修改高亮，同步滚动、逐处跳转。 |
 | **舒服地阅读** | 深浅主题、响应式布局，窄窗口也能看；代码与正文都可复制。 |
+| **中英文界面** | 默认跟随浏览器语言：中文显示简体中文，其他语言显示英文；可在扩展菜单手动切换。 |
 | **本地处理** | 正文和编辑内容不上传，不接入统计服务，文档图片由你决定是否加载。 |
 
 ## 看清每一处修改
@@ -48,13 +50,15 @@
 
 ## 安装与使用
 
-目前通过 [GitHub Releases](https://github.com/erjin-zhi/markdown-viewer/releases/latest) 下载；Chrome 应用商店版本尚未上架。
+可从 [Chrome 应用商店](https://chromewebstore.google.com/detail/apgilbfecpelkbdlpicghlioaffpglfd) 安装，也可通过 [GitHub Releases](https://github.com/erjin-zhi/markdown-viewer/releases/latest) 下载已发布的安装包。以下步骤适用于手动加载本地安装包：
 
 1. 下载并解压最新的 `Markdown-Viewer-v*.zip`。
 2. 打开 Chrome 的 `chrome://extensions`，开启「开发者模式」，点击「加载已解压的扩展程序」，选择解压后的文件夹。
 3. 直接打开 Markdown 文件或接口，开始阅读。
 
 需要 **Chrome 128+**。预览本地 `.md` 文件时，请在扩展详情中开启「允许访问文件网址」。
+
+扩展菜单中的「界面语言 / Language」可选择「跟随浏览器 / Follow browser」「简体中文」或「English」。选择会保存在本机，并立即更新已打开的预览页面；切换语言不会刷新文档或清除临时编辑内容。中文浏览器的地区变体（包括繁体中文）统一使用简体中文界面，其他浏览器语言默认使用英文。文档正文保留原有语言，不会被翻译。
 
 ## 支持范围
 
@@ -64,6 +68,6 @@
 
 ## 隐私与开源
 
-解析、高亮、编辑和 diff 都在本机进行。仅保存主题与开关设置，以及当前浏览器会话所需的页面地址和响应类型；不保存正文或编辑草稿。详情见 [隐私政策](PRIVACY.md)。
+解析、高亮、编辑和 diff 都在本机进行。仅保存主题、语言与开关设置，以及当前浏览器会话所需的页面地址和响应类型；不保存正文或编辑草稿。详情见 [隐私政策](PRIVACY.md)。
 
 采用 [ISC License](LICENSE)。欢迎通过 [Issues](https://github.com/erjin-zhi/markdown-viewer/issues) 提交建议或问题。

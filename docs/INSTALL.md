@@ -14,5 +14,7 @@
 
 编辑仅在本页内存中生效。保存文件会下载编辑后的 Markdown，刷新页面会恢复原文。
 
+界面默认跟随浏览器语言：中文浏览器显示简体中文，其他语言显示英文。在扩展菜单的「界面语言 / Language」中可手动选择「简体中文」「English」或恢复「跟随浏览器 / Follow browser」。选择会保存在本机并立即更新已打开的预览页，不影响临时编辑内容。
+
 项目与更新：https://github.com/erjin-zhi/markdown-viewer
 隐私政策：https://github.com/erjin-zhi/markdown-viewer/blob/main/PRIVACY.md

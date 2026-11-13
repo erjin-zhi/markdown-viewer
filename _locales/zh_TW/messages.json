@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Markdown Viewer · Markdown 预览"
+  },
+  "extensionDescription": {
+    "message": "自动预览 Markdown 接口与文件，支持高亮、目录、临时编辑和保存文件。编辑仅本页有效，刷新即恢复原文。"
+  }
+}

@@ -103,7 +103,7 @@ button { border:0; background:none }
 .pane-divider::after { content:""; position:absolute; top:calc(50% - 22px); left:4px; width:4px; height:44px; border-radius:2px; background:var(--border) }
 .pane-divider:hover::after,.pane-divider:focus-visible::after { background:var(--accent) }
 .comparing .document-footer { padding-top:14px }
-.document-meta { display:flex; align-items:center; gap:12px; margin-bottom:16px; font:10px/1.6 ui-monospace,monospace; color:var(--muted) }
+.document-meta { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; font:10px/1.6 ui-monospace,monospace; color:var(--muted) }
 .format-badge { color:var(--accent); font-size:9px; font-weight:600; letter-spacing:1px; border:1px solid var(--border); border-radius:4px; padding:2px 6px }
 .load-images { margin-left:auto; font:11px/1.6 inherit; color:var(--accent); text-decoration:underline }
 .markdown-body,.raw-view,.editor-view { background:var(--paper); padding:40px 46px; border:1px solid var(--border); border-radius:10px; overflow-wrap:anywhere; box-shadow:0 3px 12px #23384903 }
@@ -184,6 +184,7 @@ code,pre { font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospa
   .comparing .pane-divider { display:none }
   .diff-controls { gap:6px } .diff-summary { flex-basis:100% }
 }
+@media(max-width:600px) { .brand > span:last-child { display:none } }
 @media(max-width:480px) {
   .brand > span:last-child { display:none } .topbar { padding:0 12px } .toolbar { gap:6px } .button { padding:6px 10px }
   .main { padding:20px 12px 8px } .document-bar { margin-bottom:20px } .markdown-body { padding:24px 20px; font-size:14px }

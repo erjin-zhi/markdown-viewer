@@ -1,6 +1,6 @@
 # Markdown Viewer 隐私政策
 
-更新日期：2026-10-21
+更新日期：2026-11-13
 
 Markdown Viewer 是用于在 Chrome 中预览、临时编辑与对比 Markdown 文档的扩展。项目维护者为 GitHub 用户 [erjin-zhi](https://github.com/erjin-zhi)。
 
@@ -12,7 +12,7 @@ Markdown Viewer 是用于在 Chrome 中预览、临时编辑与对比 Markdown �
 
 ## 浏览器中的数据
 
-- `chrome.storage.local`：保存自动预览开关和主题偏好。
+- `chrome.storage.local`：保存自动预览开关、主题偏好和界面语言选择。默认跟随浏览器界面语言，不将语言设置发送到服务器。
 - `chrome.storage.session`：临时记录各标签页顶层导航的 URL、响应媒体类型和 Markdown 判断结果，以判断是否预览。该记录可能包括非 Markdown 页面的导航地址；每个标签页仅保留最近记录，关闭标签页后删除，浏览器会话结束后清除。
 - 正文和编辑草稿不写入扩展存储，也不使用浏览器同步存储。
 - 不读取 Cookie 值、账户密码、支付信息或浏览历史数据库。不包含遥测、广告或统计 SDK。
